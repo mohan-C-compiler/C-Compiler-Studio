@@ -303,6 +303,7 @@ async function runCode() {
   const status = document.getElementById("status");
 
   const code = editor.value;
+  const input = document.getElementById("stdin").value;
 
   if (!code.trim()) {
     output.textContent = "Please write a C program first.";
@@ -322,7 +323,8 @@ async function runCode() {
         },
         body: JSON.stringify({
           source_code: code,
-          language_id: 50
+          language_id: 50,
+          stdin: input
         })
       }
     );
