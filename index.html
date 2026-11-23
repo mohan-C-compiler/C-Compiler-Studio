@@ -457,7 +457,8 @@ async function saveProgram(){
   await supabaseClient.auth.getUser();
 
  if(sessionError || !data.user){
-  showAuthMessage("Please sign in to save your program.");
+  showAuthMessage("Program saved successfully!");
+await loadPrograms();
   return;
  }
 
@@ -518,7 +519,7 @@ async function loginUser(){
   if(error) throw error;
 
   showAuthMessage("Login successful!");
-
+await loadPrograms();
  }catch(error){
   showAuthMessage(error.message);
  }
