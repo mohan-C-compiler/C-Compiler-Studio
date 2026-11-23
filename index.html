@@ -457,10 +457,9 @@ async function saveProgram(){
   await supabaseClient.auth.getUser();
 
  if(sessionError || !data.user){
-  showAuthMessage("Program saved successfully!");
-await loadPrograms();
+  showAuthMessage("Please sign in to save your program.");
   return;
- }
+}
 
  const code = editor.value.trim();
 
