@@ -632,7 +632,16 @@ async function checkSession(){
   return;
  }
 
- updateUserInterface(data.session?.user || null);
+ const user = data.session?.user || null;
+
+ updateUserInterface(user);
+
+ if(user){
+  await loadPrograms();
+ }else{
+  document.getElementById("programList").textContent =
+   "Sign in to view your saved programs.";
+ }
 }
 
 checkSession();
