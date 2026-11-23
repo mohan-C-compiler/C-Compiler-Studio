@@ -450,7 +450,52 @@ async function registerUser(){
   showAuthMessage(error.message);
  }
 }
+// SAVE PROGRAM
 
+async function saveProgram(){
+
+ const {data,error:sessionError} =
+  await supabaseClient.auth.getUser();
+
+ if(sessionError || !data.user){
+  showAuthMessage("Please sign in to save your program.");
+  return;
+ }
+
+ const code = editor.value.trim();
+
+ if(!code){
+  showAuthMessage("Please write a C program first.");
+  return;
+ }
+
+ const title = prompt("Enter a name for your program:");
+
+ if(!title || !title.trim()){
+  showAuthMessage("Program name is required.");
+  return;
+ }
+
+ showAuthMessage("Saving your program...");
+
+ try{
+
+  const {error} = await supabaseClient
+   .from("programs")
+   .insert({
+    user_id: data.user.id,
+    title: title.trim(),
+    code: editor.value
+   });
+
+  if(error) throw error;
+
+  showAuthMessage("Program saved successfully!");
+
+ }catch(error){
+  showAuthMessage("Save failed: " + error.message);
+ }
+ }
 // LOGIN
 
 async function loginUser(){
