@@ -534,6 +534,9 @@ async function logoutUser(){
   showAuthMessage(error.message);
  }else{
   showAuthMessage("You have signed out.");
+
+  document.getElementById("programList").textContent =
+   "Sign in to view your saved programs.";
  }
 }
 // LOAD SAVED PROGRAMS
