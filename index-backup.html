@@ -1,0 +1,709 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C Compiler Studio</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:#0b1020;
+ color:#f1f5f9;
+}
+
+header{
+ padding:18px;
+ background:#111a30;
+ border-bottom:1px solid #26334d;
+}
+
+.logo{font-size:23px;font-weight:bold;color:#60a5fa}
+.tagline{font-size:12px;color:#9ca3af;margin-top:5px}
+
+main{max-width:900px;margin:auto;padding:16px}
+h2{font-size:19px}
+
+.toolbar{
+ display:flex;
+ gap:8px;
+ flex-wrap:wrap;
+ margin:12px 0;
+}
+
+button{
+ border:0;
+ border-radius:8px;
+ padding:11px 15px;
+ font-weight:bold;
+ cursor:pointer;
+}
+
+.run{background:#16a34a;color:white}
+.secondary{background:#273449;color:white}
+.primary{background:#2563eb;color:white}
+
+.editor-box{
+ border:1px solid #334155;
+ border-radius:12px;
+ overflow:hidden;
+ background:#101827;
+}
+
+.editor-head{
+ padding:12px;
+ background:#1e293b;
+ display:flex;
+ justify-content:space-between;
+ font-size:13px;
+}
+
+#editor{
+ width:100%;
+ height:300px;
+ resize:vertical;
+ border:0;
+ outline:0;
+ padding:16px;
+ background:#101827;
+ color:#d1fae5;
+ font:15px/1.6 monospace;
+ tab-size:4;
+ white-space:pre;
+ overflow:auto;
+}
+
+.panel{
+ margin-top:18px;
+ background:#111827;
+ border:1px solid #334155;
+ border-radius:10px;
+ overflow:hidden;
+}
+
+.panel-head{
+ padding:12px;
+ background:#1e293b;
+ font-weight:bold;
+ font-size:14px;
+}
+
+#output{
+ padding:15px;
+ min-height:90px;
+ color:#a7f3d0;
+ font:14px/1.6 monospace;
+ white-space:pre-wrap;
+ overflow-wrap:anywhere;
+}
+
+.status{font-size:12px;color:#94a3b8}
+
+.auth-box{
+ margin-top:18px;
+ padding:16px;
+ background:#111827;
+ border:1px solid #334155;
+ border-radius:12px;
+}
+
+.auth-box input{
+ width:100%;
+ padding:12px;
+ margin:7px 0;
+ border:1px solid #475569;
+ border-radius:8px;
+ background:#0b1020;
+ color:white;
+ font-size:15px;
+}
+
+.auth-buttons{
+ display:flex;
+ flex-wrap:wrap;
+ gap:8px;
+ margin-top:10px;
+}
+
+#authMessage{
+ margin-top:12px;
+ font-size:13px;
+ color:#93c5fd;
+ overflow-wrap:anywhere;
+}
+
+#userArea{
+ display:none;
+}
+
+footer{
+ text-align:center;
+ padding:25px;
+ color:#64748b;
+ font-size:12px;
+}
+
+button:active{opacity:.75}
+</style>
+</head>
+
+<body>
+
+<header>
+ <div class="logo">⚡ C Compiler Studio</div>
+ <div class="tagline">Write • Compile • Run • Learn</div>
+</header>
+
+<main>
+
+<h2>Online C Compiler</h2>
+<p class="status">Write your C program in the editor below.</p>
+
+<div class="toolbar">
+<button class="run" onclick="runCode()">▶ Run Code</button>
+<button class="secondary" onclick="clearCode()">Clear</button>
+<button class="secondary" onclick="copyCode()">Copy</button>
+<button class="secondary" onclick="downloadCode()">Save File</button>
+<button class="secondary" onclick="saveProgram()">Save Program</button>
+</div>
+
+<div class="editor-box">
+ <div class="editor-head">
+  <span>📄 main.c</span>
+  <span>C Language</span>
+ </div>
+
+ <textarea id="editor" spellcheck="false"
+ autocapitalize="off" autocomplete="off">#include <stdio.h>
+
+int main() {
+    printf("Hello World!");
+    return 0;
+}</textarea>
+</div>
+
+
+ 
+<!-- ACCOUNT SECTION -->
+
+<div class="auth-box">
+
+ <h2>Account</h2>
+
+ <div id="authForms">
+
+  <p class="status">
+   Create an account to save your C programs.
+  </p>
+
+  <input id="email" type="email"
+   placeholder="Enter your email address"
+   autocomplete="email">
+
+  <input id="password" type="password"
+   placeholder="Enter your password"
+   autocomplete="new-password">
+
+  <div class="auth-buttons">
+   <button class="primary" onclick="registerUser()">
+    Create Account
+   </button>
+
+   <button class="secondary" onclick="loginUser()">
+    Sign In
+   </button>
+  </div>
+
+ </div>
+
+ <div id="userArea">
+  <p>Signed in as:</p>
+  <strong id="userEmail"></strong>
+
+  <div class="auth-buttons">
+   <button class="secondary" onclick="logoutUser()">
+    Sign Out
+   </button>
+  </div>
+ </div>
+
+ <div id="authMessage" role="status" aria-live="polite"></div>
+
+</div>
+
+<!-- COMPILER STATUS -->
+
+<div class="panel">
+ <div class="panel-head">● Compiler Status</div>
+ <div id="status" class="status" style="padding:14px">
+  Ready to write your program.
+ </div>
+</div>
+
+<!-- OUTPUT -->
+
+<div class="panel">
+ <div class="panel-head">Terminal / Output</div>
+
+ <div id="output">Your program output will appear here.</div>
+
+ <input
+  id="terminalInput"
+  type="text"
+  placeholder="Enter input here..."
+  style="width:100%;padding:14px;background:#101827;color:white;border:0;border-top:1px solid #334155;font:14px monospace;"
+ >
+</div>
+ 
+<!-- SAVED PROGRAMS -->
+
+<div class="panel">
+ <div class="panel-head">📁 My Programs</div>
+ <div id="programList" style="padding:14px;color:#94a3b8;font-size:13px">
+  Sign in to view your saved programs.
+ </div>
+</div>
+
+</main>
+
+<footer>
+ C Compiler Studio © 2026<br>
+ Made for students and learners worldwide.
+</footer>
+
+<!-- SUPABASE LIBRARY -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+// SUPABASE CONNECTION
+
+const SUPABASE_URL =
+"https://fgqjbfhfzkkxqwpwpwgd.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+"sb_publishable_Xga1Spsba-ugmShnea2Diw_WdD6CgQ_"
+
+const supabaseClient = window.supabase.createClient(
+ SUPABASE_URL,
+ SUPABASE_PUBLISHABLE_KEY
+);
+
+// C EDITOR
+
+const editor = document.getElementById("editor");
+
+
+async function runCode() {
+  const output = document.getElementById("output");
+  const status = document.getElementById("status");
+
+  const code = editor.value;
+  const input = document.getElementById("terminalInput").value;
+  if (!code.trim()) {
+    output.textContent = "Please write a C program first.";
+    return;
+  }
+
+  status.textContent = "Compiling your C program...";
+  output.textContent = "Please wait...";
+
+  try {
+    const response = await fetch(
+      "https://ce.judge0.com/submissions?base64_encoded=false&wait=false",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          source_code: code,
+          language_id: 50,
+          stdin: input
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Compiler service error: " + response.status);
+    }
+
+    const submission = await response.json();
+    const token = submission.token;
+
+    if (!token) {
+      throw new Error("Could not create submission.");
+    }
+
+    let result;
+
+    for (let i = 0; i < 30; i++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const check = await fetch(
+        "https://ce.judge0.com/submissions/" +
+        token + "?base64_encoded=false"
+      );
+
+      result = await check.json();
+
+      if (result.status && result.status.id > 2) {
+        break;
+      }
+    }
+
+    if (!result || !result.status || result.status.id <= 2) {
+      output.textContent = "Compilation is taking too long. Please try again.";
+      status.textContent = "Timed out";
+      return;
+    }
+
+    output.textContent =
+      result.stdout ||
+      result.compile_output ||
+      result.stderr ||
+      result.message ||
+      result.status.description;
+
+    status.textContent = result.status.description;
+
+  } catch (error) {
+    output.textContent = "Error: " + error.message;
+    status.textContent = "Compiler connection failed";
+  }
+}
+
+
+function clearCode(){
+ if(confirm("Clear your code?")){
+  editor.value = "";
+  document.getElementById("output").textContent = "Editor cleared.";
+ }
+}
+
+function copyCode(){
+ if(navigator.clipboard){
+  navigator.clipboard.writeText(editor.value)
+   .then(()=>alert("Code copied!"))
+   .catch(()=>alert("Please select and copy the code manually."));
+ }else{
+  alert("Please select and copy the code manually.");
+ }
+}
+
+function downloadCode(){
+ const file = new Blob([editor.value],{type:"text/plain"});
+ const url = URL.createObjectURL(file);
+ const a = document.createElement("a");
+ a.href = url;
+ a.download = "main.c";
+ a.click();
+ URL.revokeObjectURL(url);
+}
+
+// ACCOUNT MESSAGE
+
+function showAuthMessage(message){
+ document.getElementById("authMessage").textContent = message;
+}
+
+// REGISTER
+
+async function registerUser(){
+
+ const email = document.getElementById("email").value.trim();
+ const password = document.getElementById("password").value;
+
+ if(!email || !password){
+  showAuthMessage("Please enter your email and password.");
+  return;
+ }
+
+ if(password.length < 6){
+  showAuthMessage("Password must contain at least 6 characters.");
+  return;
+ }
+
+ showAuthMessage("Creating your account...");
+
+ try{
+  const {data,error} = await supabaseClient.auth.signUp({
+   email: email,
+   password: password
+  });
+
+  if(error) throw error;
+
+  if(data.session){
+   showAuthMessage("Account created successfully! You are now signed in.");
+  }else{
+   showAuthMessage("Account created! Please try signing in.");
+  }
+
+ }catch(error){
+  showAuthMessage(error.message);
+ }
+}
+// SAVE PROGRAM
+
+async function saveProgram(){
+
+ const {data,error:sessionError} =
+  await supabaseClient.auth.getUser();
+
+ if(sessionError || !data.user){
+  showAuthMessage("Please sign in to save your program.");
+  return;
+}
+
+ const code = editor.value.trim();
+
+ if(!code){
+  showAuthMessage("Please write a C program first.");
+  return;
+ }
+
+ const title = prompt("Enter a name for your program:");
+
+ if(!title || !title.trim()){
+  showAuthMessage("Program name is required.");
+  return;
+ }
+
+ showAuthMessage("Saving your program...");
+
+ try{
+
+  const {error} = await supabaseClient
+   .from("programs")
+   .insert({
+    user_id: data.user.id,
+    title: title.trim(),
+    code: editor.value
+   });
+
+  if(error) throw error;
+
+  showAuthMessage("Program saved successfully!");
+await loadPrograms();
+ }catch(error){
+  showAuthMessage("Save failed: " + error.message);
+ }
+ }
+// LOGIN
+
+async function loginUser(){
+
+ const email = document.getElementById("email").value.trim();
+ const password = document.getElementById("password").value;
+
+ if(!email || !password){
+  showAuthMessage("Please enter your email and password.");
+  return;
+ }
+
+ showAuthMessage("Signing in...");
+
+ try{
+  const {error} = await supabaseClient.auth.signInWithPassword({
+   email: email,
+   password: password
+  });
+
+  if(error) throw error;
+
+  showAuthMessage("Login successful!");
+await loadPrograms();
+ }catch(error){
+  showAuthMessage(error.message);
+ }
+}
+
+// LOGOUT
+
+async function logoutUser(){
+
+ const {error} = await supabaseClient.auth.signOut();
+
+ if(error){
+  showAuthMessage(error.message);
+ }else{
+  showAuthMessage("You have signed out.");
+
+  document.getElementById("programList").textContent =
+   "Sign in to view your saved programs.";
+ }
+}
+// LOAD SAVED PROGRAMS
+
+async function loadPrograms(){
+
+ const {data,error} = await supabaseClient
+  .from("programs")
+  .select("*")
+  .order("created_at",{ascending:false});
+
+ const list = document.getElementById("programList");
+
+ if(error){
+  list.textContent = "Unable to load programs: " + error.message;
+  return;
+ }
+
+ if(!data || data.length === 0){
+  list.textContent = "No saved programs yet.";
+  return;
+ }
+
+ list.innerHTML = "";
+
+ data.forEach(program => {
+
+  const item = document.createElement("div");
+  item.style.padding = "12px";
+  item.style.borderBottom = "1px solid #334155";
+
+  const name = document.createElement("strong");
+  name.textContent = program.title;
+
+  const openButton = document.createElement("button");
+openButton.textContent = "Open";
+openButton.className = "primary";
+openButton.style.marginLeft = "10px";
+openButton.onclick = () => openProgram(program.id);
+
+const deleteButton = document.createElement("button");
+deleteButton.textContent = "Delete";
+deleteButton.className = "secondary";
+deleteButton.style.marginLeft = "8px";
+deleteButton.onclick = () => deleteProgram(program.id);
+
+item.appendChild(name);
+item.appendChild(openButton);
+item.appendChild(deleteButton);
+list.appendChild(item);
+ });
+}
+
+// OPEN SAVED PROGRAM
+
+async function openProgram(id){
+
+ const {data,error} = await supabaseClient
+  .from("programs")
+  .select("*")
+  .eq("id",id)
+  .single();
+
+ if(error){
+  showAuthMessage("Unable to open program: " + error.message);
+  return;
+ }
+
+ editor.value = data.code;
+ showAuthMessage("Program opened: " + data.title);
+ }
+ // DELETE SAVED PROGRAM
+
+async function deleteProgram(id){
+
+ if(!confirm("Are you sure you want to delete this program?")){
+  return;
+ }
+
+ try{
+
+  const {error} = await supabaseClient
+   .from("programs")
+   .delete()
+   .eq("id",id);
+
+  if(error) throw error;
+
+  showAuthMessage("Program deleted successfully!");
+
+  await loadPrograms();
+
+ }catch(error){
+
+  showAuthMessage("Delete failed: " + error.message);
+
+ }
+ }
+// DISPLAY LOGIN STATUS
+
+function updateUserInterface(user){
+
+ const authForms = document.getElementById("authForms");
+ const userArea = document.getElementById("userArea");
+
+ if(user){
+  authForms.style.display = "none";
+  userArea.style.display = "block";
+  document.getElementById("userEmail").textContent = user.email;
+ }else{
+  authForms.style.display = "block";
+  userArea.style.display = "none";
+  document.getElementById("userEmail").textContent = "";
+ }
+}
+
+// CHECK EXISTING SESSION
+
+supabaseClient.auth.onAuthStateChange((event,session)=>{
+ updateUserInterface(session?.user || null);
+});
+
+async function checkSession(){
+ const {data,error} = await supabaseClient.auth.getSession();
+
+ if(error){
+  showAuthMessage(error.message);
+  return;
+ }
+
+ const user = data.session?.user || null;
+
+ updateUserInterface(user);
+
+ if(user){
+  await loadPrograms();
+ }else{
+  document.getElementById("programList").textContent =
+   "Sign in to view your saved programs.";
+ }
+}
+
+checkSession();
+
+// TAB KEY SUPPORT
+
+editor.addEventListener("keydown",function(e){
+
+ if(e.key === "Tab"){
+  e.preventDefault();
+
+  const start = this.selectionStart;
+  const end = this.selectionEnd;
+
+  this.value =
+   this.value.substring(0,start) +
+   "    " +
+   this.value.substring(end);
+
+  this.selectionStart =
+   this.selectionEnd = start + 4;
+ }
+
+});
+
+</script>
+
+</body>
+    </html>
+      
