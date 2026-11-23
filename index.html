@@ -536,7 +536,70 @@ async function logoutUser(){
   showAuthMessage("You have signed out.");
  }
 }
+// LOAD SAVED PROGRAMS
 
+async function loadPrograms(){
+
+ const {data,error} = await supabaseClient
+  .from("programs")
+  .select("*")
+  .order("created_at",{ascending:false});
+
+ const list = document.getElementById("programList");
+
+ if(error){
+  list.textContent = "Unable to load programs: " + error.message;
+  return;
+ }
+
+ if(!data || data.length === 0){
+  list.textContent = "No saved programs yet.";
+  return;
+ }
+
+ list.innerHTML = "";
+
+ data.forEach(program => {
+
+  const item = document.createElement("div");
+  item.style.padding = "12px";
+  item.style.borderBottom = "1px solid #334155";
+
+  const name = document.createElement("strong");
+  name.textContent = program.title;
+
+  const openButton = document.createElement("button");
+  openButton.textContent = "Open";
+  openButton.className = "primary";
+  openButton.style.marginLeft = "10px";
+  openButton.onclick = () => openProgram(program.id);
+
+  item.appendChild(name);
+  item.appendChild(openButton);
+  list.appendChild(item);
+
+ });
+}
+
+// OPEN SAVED PROGRAM
+
+async function openProgram(id){
+
+ const {data,error} = await supabaseClient
+  .from("programs")
+  .select("*")
+  .eq("id",id)
+  .single();
+
+ if(error){
+  showAuthMessage("Unable to open program: " + error.message);
+  return;
+ }
+
+ editor.value = data.code;
+ showAuthMessage("Program opened: " + data.title);
+ }
+ 
 // DISPLAY LOGIN STATUS
 
 function updateUserInterface(user){
