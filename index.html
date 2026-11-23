@@ -608,7 +608,33 @@ async function openProgram(id){
  editor.value = data.code;
  showAuthMessage("Program opened: " + data.title);
  }
- 
+ // DELETE SAVED PROGRAM
+
+async function deleteProgram(id){
+
+ if(!confirm("Are you sure you want to delete this program?")){
+  return;
+ }
+
+ try{
+
+  const {error} = await supabaseClient
+   .from("programs")
+   .delete()
+   .eq("id",id);
+
+  if(error) throw error;
+
+  showAuthMessage("Program deleted successfully!");
+
+  await loadPrograms();
+
+ }catch(error){
+
+  showAuthMessage("Delete failed: " + error.message);
+
+ }
+ }
 // DISPLAY LOGIN STATUS
 
 function updateUserInterface(user){
