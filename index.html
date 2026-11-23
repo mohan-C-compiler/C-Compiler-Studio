@@ -304,8 +304,7 @@ async function runCode() {
   const status = document.getElementById("status");
 
   const code = editor.value;
-  const input = document.getElementById("stdin").value;
-
+  const input = document.getElementById("terminalInput").value;
   if (!code.trim()) {
     output.textContent = "Please write a C program first.";
     return;
