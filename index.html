@@ -490,7 +490,7 @@ async function saveProgram(){
   if(error) throw error;
 
   showAuthMessage("Program saved successfully!");
-
+await loadPrograms();
  }catch(error){
   showAuthMessage("Save failed: " + error.message);
  }
