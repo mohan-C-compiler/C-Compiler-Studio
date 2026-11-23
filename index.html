@@ -572,15 +572,21 @@ async function loadPrograms(){
   name.textContent = program.title;
 
   const openButton = document.createElement("button");
-  openButton.textContent = "Open";
-  openButton.className = "primary";
-  openButton.style.marginLeft = "10px";
-  openButton.onclick = () => openProgram(program.id);
+openButton.textContent = "Open";
+openButton.className = "primary";
+openButton.style.marginLeft = "10px";
+openButton.onclick = () => openProgram(program.id);
 
-  item.appendChild(name);
-  item.appendChild(openButton);
-  list.appendChild(item);
+const deleteButton = document.createElement("button");
+deleteButton.textContent = "Delete";
+deleteButton.className = "secondary";
+deleteButton.style.marginLeft = "8px";
+deleteButton.onclick = () => deleteProgram(program.id);
 
+item.appendChild(name);
+item.appendChild(openButton);
+item.appendChild(deleteButton);
+list.appendChild(item);
  });
 }
 
