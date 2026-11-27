@@ -444,8 +444,9 @@ function runCode(){
     return;
    }
 
-   if(data.type === "done"){
-    const code = Number(data.exitCode);
+   const code = Number.isFinite(Number(data.exitCode))
+    ? Number(data.exitCode)
+    : 0;
 
     finishRun(
      code === 0
