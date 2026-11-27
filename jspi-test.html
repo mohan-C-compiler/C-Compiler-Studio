@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSPI Browser Test</title>
+</head>
+<body style="font-family:Arial;padding:20px;background:#101827;color:white">
+
+  <h2>JSPI Compatibility Test</h2>
+  <p id="result">Checking browser support...</p>
+
+  <script>
+    const result = document.getElementById("result");
+
+    const supported =
+      typeof WebAssembly.Suspending === "function" &&
+      typeof WebAssembly.promising === "function";
+
+    if (supported) {
+      result.textContent = "JSPI API is available!";
+      result.style.color = "lightgreen";
+    } else {
+      result.textContent = "JSPI API is not available.";
+      result.style.color = "orange";
+    }
+  </script>
+
+</body>
+</html>
