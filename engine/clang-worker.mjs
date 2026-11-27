@@ -3,9 +3,8 @@
  * Interactive Clang-in-browser worker.
  *
  * Adapted from cpp-forge / clang-in-browser.
- * Original project: https://github.com/nothing12-glitch/cpp-forge
- * Original engine: https://github.com/devtoolry/clang-in-browser
- * Preserve the original MIT license notices when distributing.
+ * Original project:
+ * https://github.com/nothing12-glitch/cpp-forge
  *
  * Supports C and C++, Clang 21, and interactive terminal input
  * through WebAssembly JSPI.
@@ -56,8 +55,7 @@ function emit(stream, text) {
   const remaining = MAX_OUTPUT_CHARS - written;
 
   if (text.length > remaining) {
-    text = text.slice(0, remaining) +
-      '\n[Output truncated]\n';
+    text = text.slice(0, remaining) + '\n[Output truncated]\n';
   }
 
   written += text.length;
@@ -83,6 +81,7 @@ function progress({ totalLength, doneLength }) {
 
 function lineBuffered(stream, buffer) {
   const decoder = new TextDecoder();
+
   const send = text =>
     buffer ? text && buffer.push([stream, text]) : emit(stream, text);
 
@@ -157,9 +156,7 @@ async function gunzip(data) {
 function loadPch() {
   pchFiles ??= (async () => {
     const manifest = JSON.parse(
-      new TextDecoder().decode(
-        await fetchBytes('manifest.json')
-      )
+      new TextDecoder().decode(await fetchBytes('manifest.json'))
     );
 
     if (!CLANG_BASE.includes(`@${manifest.clang}/`)) {
@@ -288,24 +285,9 @@ async function compile(language, code, flags) {
   return output?.['main.wasm'] ?? null;
 }
 
-/*
- * Messages received from the webpage:
- *
- * { type: 'run', code, language, standard }
- * { type: 'input', text }
- * { type: 'close-input' }
- *
- * Messages sent to the webpage:
- *
- * { type: 'status', status }
- * { type: 'output', stream, text }
- * { type: 'done', exitCode }
- */
-
 self.onmessage = async event => {
   const data = event.data || {};
 
-  // Receive a line typed by the user in the terminal.
   if (data.type === 'input') {
     if (activeWasi) {
       activeWasi.pushInput(String(data.text ?? '') + '\n');
@@ -313,7 +295,6 @@ self.onmessage = async event => {
     return;
   }
 
-  // Signal that no more terminal input will arrive.
   if (data.type === 'close-input') {
     if (activeWasi) {
       activeWasi.closeInput();
@@ -358,9 +339,7 @@ self.onmessage = async event => {
         status: 'loading'
       });
 
-      toolchain = await import(
-        `${CLANG_BASE}gen/bundle.js`
-      );
+      toolchain = await import(`${CLANG_BASE}gen/bundle.js`);
     }
 
     emit(
@@ -382,8 +361,16 @@ self.onmessage = async event => {
 
       activeWasi = createWasi({
         args: ['main'],
+
         write: (fd, text) => {
           emit(fd === 2 ? 'stderr' : 'stdout', text);
+        },
+
+        // This event occurs when the C program requests input.
+        onInputRequest: () => {
+          self.postMessage({
+            type: 'input-needed'
+          });
         }
       });
 
@@ -392,13 +379,21 @@ self.onmessage = async event => {
         activeWasi.imports
       );
 
+      const wasmMemory =
+        instance.exports.memory ||
+        instance.exports.__memory_base;
+
+      if (wasmMemory instanceof WebAssembly.Memory) {
+        activeWasi.setMemory(wasmMemory);
+      } else {
+        throw new Error('Could not access the program WASM memory.');
+      }
+
       self.postMessage({
         type: 'status',
-        status: 'ready'
+        status: 'running'
       });
 
-      // The program can now pause at scanf() and wait for
-      // another message from the webpage's terminal.
       exitCode = await activeWasi.start(instance);
     }
   } catch (error) {
