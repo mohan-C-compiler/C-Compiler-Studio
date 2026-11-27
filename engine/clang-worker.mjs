@@ -368,11 +368,13 @@ self.onmessage = async event => {
 
         // This event occurs when the C program requests input.
         onInputRequest: () => {
-          self.postMessage({
-            type: 'input-needed'
-          });
-        }
-      });
+  emit('system', '[DEBUG] C program requested input.\n');
+
+  self.postMessage({
+    type: 'input-needed'
+  });
+}
+});
 
       const instance = await WebAssembly.instantiate(
         program,
