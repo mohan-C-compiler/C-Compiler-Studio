@@ -3,10 +3,14 @@
  * Interactive WASI host for Clang in the browser.
  *
  * Adapted for C Compiler Studio.
- * Supports asynchronous terminal input using JSPI.
+ * Supports asynchronous terminal input using WebAssembly JSPI.
  */
 
-export function createWasi({ args = ['main'], write = () => {} } = {}) {
+export function createWasi({
+  args = ['main'],
+  write = () => {},
+  onInputRequest = () => {}
+} = {}) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
@@ -45,10 +49,6 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     wakeInputWaiters();
   }
 
-  function writeOutput(fd, text) {
-    write(fd, text);
-  }
-
   function fdWrite(fd, iovs, iovsLen, nwritten) {
     const view = getMemory();
     let total = 0;
@@ -58,7 +58,8 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
       const len = view.getUint32(iovs + i * 8 + 4, true);
 
       const bytes = new Uint8Array(memory.buffer, ptr, len);
-      writeOutput(fd, decoder.decode(bytes));
+
+      write(fd, decoder.decode(bytes));
 
       total += len;
     }
@@ -67,41 +68,43 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     return 0;
   }
 
-  function fdRead(fd, iovs, iovsLen, nread) {
-    return (async () => {
-      if (fd !== 0) return 8;
+  async function fdRead(fd, iovs, iovsLen, nread) {
+    if (fd !== 0) return 8;
 
-      // Wait only until at least one input byte is available.
+    // Tell the webpage that the C program needs input.
+    if (inputBuffer.length === 0 && !inputClosed) {
+      onInputRequest();
+
+      // Wait until the user submits input.
       while (inputBuffer.length === 0 && !inputClosed) {
         await new Promise(resolve => inputWaiters.push(resolve));
       }
+    }
 
-      const view = getMemory();
-      let total = 0;
+    const view = getMemory();
+    let total = 0;
 
-      // Return available input immediately.
-      // Do not wait to fill the entire WASI buffer.
-      for (let i = 0; i < iovsLen; i++) {
-        const ptr = view.getUint32(iovs + i * 8, true);
-        const len = view.getUint32(iovs + i * 8 + 4, true);
+    // Copy available input into WASI memory.
+    for (let i = 0; i < iovsLen; i++) {
+      const ptr = view.getUint32(iovs + i * 8, true);
+      const len = view.getUint32(iovs + i * 8 + 4, true);
 
-        let count = 0;
+      let count = 0;
 
-        while (count < len && inputBuffer.length > 0) {
-          const byte = inputBuffer.shift();
+      while (count < len && inputBuffer.length > 0) {
+        const byte = inputBuffer.shift();
 
-          new Uint8Array(memory.buffer)[ptr + count] = byte;
+        new Uint8Array(memory.buffer)[ptr + count] = byte;
 
-          count++;
-          total++;
-        }
-
-        if (count < len) break;
+        count++;
+        total++;
       }
 
-      getMemory().setUint32(nread, total, true);
-      return 0;
-    })();
+      if (count < len) break;
+    }
+
+    getMemory().setUint32(nread, total, true);
+    return 0;
   }
 
   function fdClose() {
@@ -136,7 +139,13 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
 
   function randomGet(ptr, len) {
     const bytes = new Uint8Array(memory.buffer, ptr, len);
-    crypto.getRandomValues(bytes);
+
+    for (let offset = 0; offset < len; offset += 65536) {
+      crypto.getRandomValues(
+        bytes.subarray(offset, Math.min(offset + 65536, len))
+      );
+    }
+
     return 0;
   }
 
@@ -161,6 +170,7 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
 
       args.forEach((arg, i) => {
         const bytes = encoder.encode(arg);
+
         view.setUint32(argv + i * 4, offset, true);
 
         new Uint8Array(memory.buffer, offset, bytes.length).set(bytes);
@@ -186,7 +196,10 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     },
 
     fd_write: fdWrite,
-    fd_read: fdRead,
+
+    // JSPI is required for asynchronous terminal input.
+    fd_read: new WebAssembly.Suspending(fdRead),
+
     fd_close: fdClose,
     fd_seek: fdSeek,
     fd_fdstat_get: fdFdstatGet,
@@ -203,8 +216,6 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     }
   };
 
-  let instance = null;
-
   return {
     imports: {
       wasi_snapshot_preview1: wasiImport
@@ -215,12 +226,10 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     },
 
     async start(wasmInstance) {
-      instance = wasmInstance;
-
-      const startFunction = instance.exports._start;
+      const startFunction = wasmInstance.exports._start;
 
       if (typeof WebAssembly.promising !== 'function') {
-        throw new Error('WebAssembly JSPI is not supported in this browser.');
+        throw new Error('WebAssembly JSPI is not supported.');
       }
 
       const promisingStart = WebAssembly.promising(startFunction);
@@ -231,5 +240,4 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     pushInput,
     closeInput
   };
-  }
-          
+}
