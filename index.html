@@ -23,7 +23,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .primary{background:#2563eb;color:white}
 .editor-box{border:1px solid #334155;border-radius:12px;overflow:hidden;background:#101827}
 .editor-head{padding:12px;background:#1e293b;display:flex;justify-content:space-between;font-size:13px}
-#editor{width:100%;height:300px;resize:vertical;border:0;outline:0;padding:16px;background:#101827;color:#d1fae5;font:15px/1.6 monospace;tab-size:4;white-space:pre;overflow:auto}
+#editor{min-height:300px}
+.cm-editor{min-height:300px;height:400px;font-size:15px}
+.cm-scroller{overflow:auto}
+.cm-content{font-family:monospace;line-height:1.6}
+.cm-gutters{border-right:1px solid #334155}
 .panel{margin-top:18px;background:#111827;border:1px solid #334155;border-radius:10px;overflow:hidden}
 .panel-head{padding:12px;background:#1e293b;font-weight:bold;font-size:14px}
 #output{padding:15px;min-height:120px;max-height:400px;overflow-y:auto;color:#a7f3d0;font:14px/1.6 monospace;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -44,8 +48,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 footer{text-align:center;padding:25px;color:#64748b;font-size:12px}
 button:active{opacity:.75}
 </style>
-</head>
 
+</head>
 <body>
 
 <header>
@@ -61,13 +65,13 @@ button:active{opacity:.75}
 <div class="mode-box">
 <label for="cMode">⚙️ C Programming Mode</label>
 
-<select id="cMode">
+<select id="cMode" style="width:100%;padding:12px;background:#0b1020;color:white;border:1px solid #475569;border-radius:8px">
 <option value="standard">Standard C Mode (Recommended)</option>
 <option value="compatibility">Beginner Compatibility Mode</option>
 </select>
 
 <div id="modeDescription" class="mode-description">
-Standard C mode follows standard C rules. Use int main() as your program entry point.
+Standard C mode follows standard C rules. Use int main().
 </div>
 </div>
 
@@ -83,15 +87,9 @@ Standard C mode follows standard C rules. Use int main() as your program entry p
 <div class="editor-box">
 <div class="editor-head">
 <span>📄 main.c</span>
-<span>C Language</span>
+<span>C Language • CodeMirror 6</span>
 </div>
-
-<textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off">#include <stdio.h>
-
-int main() {
-    printf("Hello World!");
-    return 0;
-}</textarea>
+<div id="editor"></div>
 </div>
 
 <div class="auth-box">
@@ -154,6 +152,87 @@ C Compiler Studio © 2026<br>
 Made for students and learners worldwide.
 </footer>
 
+<!-- CODEMIRROR EDITOR -->
+<script type="module">
+
+import {
+ EditorView,
+ basicSetup
+} from "https://esm.sh/codemirror@6.0.2";
+
+import {
+ cpp
+} from "https://esm.sh/@codemirror/lang-cpp";
+
+const initialCode = `#include <stdio.h>
+
+int main() {
+    printf("Hello World!");
+    return 0;
+}`;
+
+const view = new EditorView({
+ doc: initialCode,
+
+ extensions: [
+  basicSetup,
+  cpp(),
+
+  EditorView.theme({
+   "&": {
+    height: "400px",
+    backgroundColor: "#101827",
+    color: "#d1fae5"
+   },
+
+   ".cm-gutters": {
+    backgroundColor: "#172033",
+    color: "#64748b",
+    border: "none"
+   },
+
+   ".cm-activeLine": {
+    backgroundColor: "#1e293b"
+   },
+
+   ".cm-activeLineGutter": {
+    backgroundColor: "#1e293b"
+   },
+
+   ".cm-cursor": {
+    borderLeftColor: "#f1f5f9"
+   },
+
+   ".cm-selectionBackground": {
+    backgroundColor: "#334155 !important"
+   }
+  })
+ ],
+
+ parent: document.getElementById("editor")
+});
+
+// Give the main website access to editor contents.
+window.getEditorCode = function() {
+ return view.state.doc.toString();
+};
+
+window.setEditorCode = function(code) {
+ const oldLength = view.state.doc.length;
+
+ view.dispatch({
+  changes: {
+   from: 0,
+   to: oldLength,
+   insert: code
+  }
+ });
+};
+
+window.editorReady = true;
+
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -166,7 +245,6 @@ const supabaseClient=window.supabase.createClient(
  SUPABASE_PUBLISHABLE_KEY
 );
 
-const editor=document.getElementById("editor");
 const output=document.getElementById("output");
 const status=document.getElementById("status");
 const terminalLine=document.getElementById("terminalLine");
@@ -181,7 +259,21 @@ let runTimer=null;
 
 const MAX_RUN_TIME=60000;
 
-// MODE DESCRIPTION
+function getCode(){
+ if(!window.editorReady || !window.getEditorCode){
+  throw new Error("Code editor is still loading. Please wait.");
+ }
+ return window.getEditorCode();
+}
+
+function setCode(code){
+ if(!window.editorReady || !window.setEditorCode){
+  showAuthMessage("Editor is still loading. Please wait.");
+  return;
+ }
+ window.setEditorCode(code);
+}
+
 cMode.addEventListener("change",function(){
 
  if(cMode.value==="standard"){
@@ -189,26 +281,19 @@ cMode.addEventListener("change",function(){
    "Standard C mode follows standard C rules. Use int main() as your program entry point.";
  }else{
   modeDescription.textContent=
-   "Compatibility mode converts a supported void main() declaration into int main() before compilation. Your editor code remains unchanged.";
+   "Compatibility mode converts supported void main() declarations into int main() before compilation.";
  }
 
 });
 
-// CHECK FOR void main()
 function hasVoidMain(code){
-
  return /\bvoid\s+main\s*\(/.test(code);
-
 }
 
-// PREPARE COMPATIBILITY CODE
 function prepareCode(code){
 
  if(cMode.value==="standard"){
-  return {
-   code:code,
-   converted:false
-  };
+  return {code:code,converted:false};
  }
 
  const convertedCode=code.replace(
@@ -271,14 +356,20 @@ function runCode(){
 
  if(isRunning)return;
 
- const originalCode=editor.value;
+ let originalCode;
+
+ try{
+  originalCode=getCode();
+ }catch(error){
+  output.textContent=error.message;
+  return;
+ }
 
  if(!originalCode.trim()){
   output.textContent="Please write a C program first.";
   return;
  }
 
- // STANDARD MODE VALIDATION
  if(cMode.value==="standard" && hasVoidMain(originalCode)){
 
   output.textContent=
@@ -297,9 +388,7 @@ function runCode(){
 
  }
 
- // PREPARE CODE
  const prepared=prepareCode(originalCode);
-
  const codeToCompile=prepared.code;
 
  output.textContent="";
@@ -343,18 +432,14 @@ function runCode(){
    }
 
    if(data.type==="input-needed"){
-
     status.textContent="Your program is waiting for input.";
     setTerminalEnabled(true);
     return;
-
    }
 
    if(data.type==="output"){
-
     appendOutput(data.text||"");
     return;
-
    }
 
    if(data.type==="done"){
@@ -370,14 +455,11 @@ function runCode(){
     );
 
     return;
-
    }
 
    if(data.type==="error"){
-
     appendOutput("\nCompiler error: "+(data.message||"Unknown error"));
     finishRun("Compiler failed.");
-
    }
 
   };
@@ -416,7 +498,7 @@ function runCode(){
 
 }
 
-// SEND ONE INPUT LINE
+// SEND INPUT
 terminalForm.addEventListener("submit",function(event){
 
  event.preventDefault();
@@ -426,7 +508,6 @@ terminalForm.addEventListener("submit",function(event){
  const text=terminalLine.value;
 
  setTerminalEnabled(false);
-
  appendOutput(text+"\n");
 
  compilerWorker.postMessage({
@@ -450,7 +531,7 @@ function stopCode(){
 function clearCode(){
 
  if(confirm("Clear your code?")){
-  editor.value="";
+  setCode("");
   output.textContent="Editor cleared.";
  }
 
@@ -459,16 +540,23 @@ function clearCode(){
 // COPY
 function copyCode(){
 
+ let code;
+
+ try{
+  code=getCode();
+ }catch(error){
+  alert(error.message);
+  return;
+ }
+
  if(navigator.clipboard){
 
-  navigator.clipboard.writeText(editor.value)
+  navigator.clipboard.writeText(code)
    .then(()=>alert("Code copied!"))
    .catch(()=>alert("Please select and copy the code manually."));
 
  }else{
-
   alert("Please select and copy the code manually.");
-
  }
 
 }
@@ -476,7 +564,16 @@ function copyCode(){
 // DOWNLOAD
 function downloadCode(){
 
- const file=new Blob([editor.value],{type:"text/plain"});
+ let code;
+
+ try{
+  code=getCode();
+ }catch(error){
+  alert(error.message);
+  return;
+ }
+
+ const file=new Blob([code],{type:"text/plain"});
  const url=URL.createObjectURL(file);
  const a=document.createElement("a");
 
@@ -490,9 +587,7 @@ function downloadCode(){
 
 // AUTH MESSAGE
 function showAuthMessage(message){
-
  document.getElementById("authMessage").textContent=message;
-
 }
 
 // REGISTER
@@ -527,9 +622,7 @@ async function registerUser(){
   }
 
  }catch(error){
-
   showAuthMessage(error.message);
-
  }
 
 }
@@ -557,9 +650,7 @@ async function loginUser(){
   await loadPrograms();
 
  }catch(error){
-
   showAuthMessage(error.message);
-
  }
 
 }
@@ -570,16 +661,11 @@ async function logoutUser(){
  const {error}=await supabaseClient.auth.signOut();
 
  if(error){
-
   showAuthMessage(error.message);
-
  }else{
-
   showAuthMessage("You have signed out.");
-
   document.getElementById("programList").textContent=
    "Sign in to view your saved programs.";
-
  }
 
 }
@@ -594,9 +680,16 @@ async function saveProgram(){
   return;
  }
 
- const code=editor.value.trim();
+ let code;
 
- if(!code){
+ try{
+  code=getCode();
+ }catch(error){
+  showAuthMessage(error.message);
+  return;
+ }
+
+ if(!code.trim()){
   showAuthMessage("Please write a C program first.");
   return;
  }
@@ -615,7 +708,7 @@ async function saveProgram(){
   const {error}=await supabaseClient.from("programs").insert({
    user_id:data.user.id,
    title:title.trim(),
-   code:editor.value
+   code:code
   });
 
   if(error)throw error;
@@ -624,9 +717,7 @@ async function saveProgram(){
   await loadPrograms();
 
  }catch(error){
-
   showAuthMessage("Save failed: "+error.message);
-
  }
 
 }
@@ -656,7 +747,6 @@ async function loadPrograms(){
  data.forEach(program=>{
 
   const item=document.createElement("div");
-
   item.style.padding="12px";
   item.style.borderBottom="1px solid #334155";
 
@@ -678,7 +768,6 @@ async function loadPrograms(){
   item.appendChild(name);
   item.appendChild(openButton);
   item.appendChild(deleteButton);
-
   list.appendChild(item);
 
  });
@@ -699,7 +788,7 @@ async function openProgram(id){
   return;
  }
 
- editor.value=data.code;
+ setCode(data.code);
  showAuthMessage("Program opened: "+data.title);
 
 }
@@ -722,9 +811,7 @@ async function deleteProgram(id){
   await loadPrograms();
 
  }catch(error){
-
   showAuthMessage("Delete failed: "+error.message);
-
  }
 
 }
@@ -752,9 +839,7 @@ function updateUserInterface(user){
 }
 
 supabaseClient.auth.onAuthStateChange((event,session)=>{
-
  updateUserInterface(session?.user||null);
-
 });
 
 async function checkSession(){
@@ -771,39 +856,18 @@ async function checkSession(){
  updateUserInterface(user);
 
  if(user){
-
   await loadPrograms();
-
  }else{
-
   document.getElementById("programList").textContent=
    "Sign in to view your saved programs.";
-
  }
 
 }
 
 checkSession();
 
-// TAB SUPPORT
-editor.addEventListener("keydown",function(event){
-
- if(event.key==="Tab"){
-
-  event.preventDefault();
-
-  const start=this.selectionStart;
-  const end=this.selectionEnd;
-
-  this.value=this.value.substring(0,start)+"    "+this.value.substring(end);
-
-  this.selectionStart=this.selectionEnd=start+4;
-
- }
-
-});
-
 </script>
+
 </body>
     </html>
     
