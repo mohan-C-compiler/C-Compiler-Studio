@@ -59,36 +59,43 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     return inputBuffer.shift();
   }
 
-  function fdRead(fd, iovs, iovsLen, nread) {
-    return (async () => {
-      if (fd !== 0) return 8;
+  
+function fdRead(fd, iovs, iovsLen, nread) {
+  return (async () => {
+    if (fd !== 0) return 8;
 
-      const view = getMemory();
-      let total = 0;
+    // Wait only until at least one input byte is available.
+    while (inputBuffer.length === 0 && !inputClosed) {
+      await new Promise(resolve => inputWaiters.push(resolve));
+    }
 
-      for (let i = 0; i < iovsLen; i++) {
-        const ptr = view.getUint32(iovs + i * 8, true);
-        const len = view.getUint32(iovs + i * 8 + 4, true);
+    const view = getMemory();
+    let total = 0;
 
-        let count = 0;
+    // Return available input immediately.
+    // Never wait to fill the entire WASI buffer.
+    for (let i = 0; i < iovsLen; i++) {
+      const ptr = view.getUint32(iovs + i * 8, true);
+      const len = view.getUint32(iovs + i * 8 + 4, true);
 
-        while (count < len) {
-          const byte = await readInput();
+      let count = 0;
 
-          if (byte === null) break;
+      while (count < len && inputBuffer.length > 0) {
+        const byte = inputBuffer.shift();
 
-          new Uint8Array(memory.buffer)[ptr + count] = byte;
-          count++;
-          total++;
-        }
+        new Uint8Array(memory.buffer)[ptr + count] = byte;
 
-        if (count < len) break;
+        count++;
+        total++;
       }
 
-      getMemory().setUint32(nread, total, true);
-      return 0;
-    })();
-  }
+      if (count < len) break;
+    }
+
+    getMemory().setUint32(nread, total, true);
+    return 0;
+  })();
+}
 
   function fdWrite(fd, iovs, iovsLen, nwritten) {
     if (fd !== 1 && fd !== 2) return 8;
