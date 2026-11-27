@@ -15,94 +15,42 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
   let inputWaiters = [];
   let inputClosed = false;
 
-  const encoders = new Map();
-
-  class WasiExit extends Error {
-    constructor(code) {
-      super(`Program exited with code ${code}`);
-      this.code = code;
-    }
-  }
-
   function getMemory() {
-    if (!memory) throw new Error('WASM memory is not ready.');
     return new DataView(memory.buffer);
   }
 
-  function wakeInput() {
-    while (inputWaiters.length > 0) {
-      const waiter = inputWaiters.shift();
-      waiter();
+  function wakeInputWaiters() {
+    const waiters = inputWaiters;
+    inputWaiters = [];
+
+    for (const resolve of waiters) {
+      resolve();
     }
   }
 
   function pushInput(text) {
     if (inputClosed) return;
 
-    const bytes = encoder.encode(String(text));
-    inputBuffer.push(...bytes);
-    wakeInput();
+    const bytes = encoder.encode(text);
+
+    for (const byte of bytes) {
+      inputBuffer.push(byte);
+    }
+
+    wakeInputWaiters();
   }
 
   function closeInput() {
     inputClosed = true;
-    wakeInput();
+    wakeInputWaiters();
   }
 
-  async function readInput() {
-    while (inputBuffer.length === 0 && !inputClosed) {
-      await new Promise(resolve => inputWaiters.push(resolve));
-    }
-
-    if (inputBuffer.length === 0) return null;
-
-    return inputBuffer.shift();
+  function writeOutput(fd, text) {
+    write(fd, text);
   }
-
-  
-function fdRead(fd, iovs, iovsLen, nread) {
-  return (async () => {
-    if (fd !== 0) return 8;
-
-    // Wait only until at least one input byte is available.
-    while (inputBuffer.length === 0 && !inputClosed) {
-      await new Promise(resolve => inputWaiters.push(resolve));
-    }
-
-    const view = getMemory();
-    let total = 0;
-
-    // Return available input immediately.
-    // Never wait to fill the entire WASI buffer.
-    for (let i = 0; i < iovsLen; i++) {
-      const ptr = view.getUint32(iovs + i * 8, true);
-      const len = view.getUint32(iovs + i * 8 + 4, true);
-
-      let count = 0;
-
-      while (count < len && inputBuffer.length > 0) {
-        const byte = inputBuffer.shift();
-
-        new Uint8Array(memory.buffer)[ptr + count] = byte;
-
-        count++;
-        total++;
-      }
-
-      if (count < len) break;
-    }
-
-    getMemory().setUint32(nread, total, true);
-    return 0;
-  })();
-}
 
   function fdWrite(fd, iovs, iovsLen, nwritten) {
-    if (fd !== 1 && fd !== 2) return 8;
-
     const view = getMemory();
-    const chunks = [];
-
     let total = 0;
 
     for (let i = 0; i < iovsLen; i++) {
@@ -110,175 +58,178 @@ function fdRead(fd, iovs, iovsLen, nread) {
       const len = view.getUint32(iovs + i * 8 + 4, true);
 
       const bytes = new Uint8Array(memory.buffer, ptr, len);
-      let text = encoders.get(fd);
+      writeOutput(fd, decoder.decode(bytes));
 
-      if (!text) {
-        text = new TextDecoder();
-        encoders.set(fd, text);
-      }
-
-      chunks.push(text.decode(bytes, { stream: true }));
       total += len;
     }
-
-    if (chunks.length) write(fd, chunks.join(''));
 
     getMemory().setUint32(nwritten, total, true);
     return 0;
   }
 
-  function argsSizesGet(argc, argvBufSize) {
-    const view = getMemory();
-    const strings = args.map(arg => encoder.encode(arg + '\0'));
+  function fdRead(fd, iovs, iovsLen, nread) {
+    return (async () => {
+      if (fd !== 0) return 8;
 
-    view.setUint32(argc, strings.length, true);
-    view.setUint32(
-      argvBufSize,
-      strings.reduce((sum, item) => sum + item.length, 0),
-      true
-    );
+      // Wait only until at least one input byte is available.
+      while (inputBuffer.length === 0 && !inputClosed) {
+        await new Promise(resolve => inputWaiters.push(resolve));
+      }
 
-    return 0;
-  }
+      const view = getMemory();
+      let total = 0;
 
-  function argsGet(argv, argvBuf) {
-    const view = getMemory();
-    let offset = argvBuf;
+      // Return available input immediately.
+      // Do not wait to fill the entire WASI buffer.
+      for (let i = 0; i < iovsLen; i++) {
+        const ptr = view.getUint32(iovs + i * 8, true);
+        const len = view.getUint32(iovs + i * 8 + 4, true);
 
-    args.forEach((arg, index) => {
-      const bytes = encoder.encode(arg + '\0');
-      view.setUint32(argv + index * 4, offset, true);
-      new Uint8Array(memory.buffer).set(bytes, offset);
-      offset += bytes.length;
-    });
+        let count = 0;
 
-    return 0;
-  }
+        while (count < len && inputBuffer.length > 0) {
+          const byte = inputBuffer.shift();
 
-  function environSizesGet(count, size) {
-    const view = getMemory();
-    view.setUint32(count, 0, true);
-    view.setUint32(size, 0, true);
-    return 0;
-  }
+          new Uint8Array(memory.buffer)[ptr + count] = byte;
 
-  function environGet() {
-    return 0;
+          count++;
+          total++;
+        }
+
+        if (count < len) break;
+      }
+
+      getMemory().setUint32(nread, total, true);
+      return 0;
+    })();
   }
 
   function fdClose() {
     return 0;
   }
 
-  function fdSeek(fd, offset, whence, newOffset) {
-    if (fd <= 2) return 70;
-
-    getMemory().setBigUint64(newOffset, 0n, true);
-    return 0;
+  function fdSeek() {
+    return 70;
   }
 
-  function fdFdstatGet(fd, result) {
-    if (fd > 2) return 8;
-
+  function fdFdstatGet(fd, ptr) {
     const view = getMemory();
 
-    new Uint8Array(memory.buffer, result, 24).fill(0);
-
-    view.setUint8(result, 2);
-    view.setBigUint64(result + 8, 0n, true);
-    view.setBigUint64(result + 16, 0n, true);
+    view.setUint8(ptr, fd <= 2 ? 2 : 0);
+    view.setUint16(ptr + 2, 0, true);
+    view.setUint16(ptr + 4, 0, true);
+    view.setUint16(ptr + 6, 0, true);
+    view.setUint16(ptr + 8, 0, true);
+    view.setUint16(ptr + 10, 0, true);
+    view.setUint16(ptr + 12, 0, true);
 
     return 0;
   }
 
-  function clockTimeGet(clockId, precision, time) {
+  function clockTimeGet(id, precision, timePtr) {
+    const view = getMemory();
     const now = BigInt(Date.now()) * 1000000n;
-    getMemory().setBigUint64(time, now, true);
+
+    view.setBigUint64(timePtr, now, true);
     return 0;
   }
 
   function randomGet(ptr, len) {
-    const target = new Uint8Array(memory.buffer, ptr, len);
-
-    for (let i = 0; i < len; i += 65536) {
-      crypto.getRandomValues(target.subarray(i, Math.min(i + 65536, len)));
-    }
-
+    const bytes = new Uint8Array(memory.buffer, ptr, len);
+    crypto.getRandomValues(bytes);
     return 0;
   }
 
-  function procExit(code) {
-    throw new WasiExit(code);
-  }
+  const wasiImport = {
+    args_sizes_get(argc, argvBufSize) {
+      const view = getMemory();
 
-  const imports = {
-    wasi_snapshot_preview1: {
-      args_sizes_get: argsSizesGet,
-      args_get: argsGet,
-      environ_sizes_get: environSizesGet,
-      environ_get: environGet,
+      view.setUint32(argc, args.length, true);
 
-      fd_read: new WebAssembly.Suspending(fdRead),
-      fd_write: fdWrite,
-      fd_close: fdClose,
-      fd_seek: fdSeek,
-      fd_fdstat_get: fdFdstatGet,
+      const size = args.reduce(
+        (sum, arg) => sum + encoder.encode(arg).length + 1,
+        0
+      );
 
-      clock_time_get: clockTimeGet,
-      random_get: randomGet,
-      proc_exit: procExit,
+      view.setUint32(argvBufSize, size, true);
+      return 0;
+    },
 
-      sched_yield: () => 0,
+    args_get(argv, argvBuf) {
+      const view = getMemory();
+      let offset = argvBuf;
 
-      fd_sync: () => 0,
-      fd_datasync: () => 0,
-      fd_advise: () => 0,
-      fd_allocate: () => 0,
-      fd_filestat_get: () => 8,
-      fd_prestat_get: () => 8,
-      fd_prestat_dir_name: () => 8,
+      args.forEach((arg, i) => {
+        const bytes = encoder.encode(arg);
+        view.setUint32(argv + i * 4, offset, true);
 
-      path_open: () => 44,
-      path_filestat_get: () => 44,
-      path_create_directory: () => 44,
-      path_unlink_file: () => 44,
-      path_remove_directory: () => 44,
-      path_rename: () => 44,
+        new Uint8Array(memory.buffer, offset, bytes.length).set(bytes);
+        new Uint8Array(memory.buffer)[offset + bytes.length] = 0;
+
+        offset += bytes.length + 1;
+      });
+
+      return 0;
+    },
+
+    environ_sizes_get(count, size) {
+      const view = getMemory();
+
+      view.setUint32(count, 0, true);
+      view.setUint32(size, 0, true);
+
+      return 0;
+    },
+
+    environ_get() {
+      return 0;
+    },
+
+    fd_write: fdWrite,
+    fd_read: fdRead,
+    fd_close: fdClose,
+    fd_seek: fdSeek,
+    fd_fdstat_get: fdFdstatGet,
+
+    clock_time_get: clockTimeGet,
+    random_get: randomGet,
+
+    proc_exit(code) {
+      throw new Error(`Program exited with code ${code}`);
+    },
+
+    sched_yield() {
+      return 0;
     }
   };
 
-  async function start(instance) {
-    memory = instance.exports.memory;
-
-    if (!memory) {
-      throw new Error('Program does not export WASM memory.');
-    }
-
-    try {
-      const run = WebAssembly.promising(instance.exports._start);
-      await run();
-      return 0;
-    } catch (error) {
-      if (error instanceof WasiExit) {
-        return error.code;
-      }
-
-      throw error;
-    } finally {
-      for (const [fd, textDecoder] of encoders) {
-        const remaining = textDecoder.decode();
-        if (remaining) write(fd, remaining);
-      }
-
-      encoders.clear();
-    }
-  }
+  let instance = null;
 
   return {
-    imports,
-    start,
+    imports: {
+      wasi_snapshot_preview1: wasiImport
+    },
+
+    setMemory(wasmMemory) {
+      memory = wasmMemory;
+    },
+
+    async start(wasmInstance) {
+      instance = wasmInstance;
+
+      const startFunction = instance.exports._start;
+
+      if (typeof WebAssembly.promising !== 'function') {
+        throw new Error('WebAssembly JSPI is not supported in this browser.');
+      }
+
+      const promisingStart = WebAssembly.promising(startFunction);
+
+      return await promisingStart();
+    },
+
     pushInput,
     closeInput
   };
-}
-      
+  }
+          
