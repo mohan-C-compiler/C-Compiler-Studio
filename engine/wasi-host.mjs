@@ -273,5 +273,5 @@ export function createWasi({ args = ['main'], write = () => {} } = {}) {
     pushInput,
     closeInput
   };
-        }
+}
       
