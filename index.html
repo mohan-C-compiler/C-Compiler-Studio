@@ -269,9 +269,7 @@ int main() {
 <div class="panel">
  <div class="panel-head">Terminal / Output</div>
 
- <div id="output" role="log" aria-live="polite">
-Your program output will appear here.
- </div>
+ <div id="output" role="log" aria-live="polite">Your program output will appear here.</div>
 
  <form id="terminalForm" class="terminal-entry">
   <span class="terminal-prompt">›</span>
@@ -308,8 +306,6 @@ Your program output will appear here.
  C Compiler Studio © 2026<br>
  Made for students and learners worldwide.
 </footer>
-
-<!-- SUPABASE LIBRARY -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -364,7 +360,6 @@ function setTerminalEnabled(enabled){
 
 function setRunningState(running){
  isRunning = running;
-
  document.getElementById("runButton").disabled = running;
  document.getElementById("stopButton").disabled = !running;
 }
@@ -415,6 +410,8 @@ function runCode(){
 
   const currentWorker = compilerWorker;
 
+  // CORRECTED WORKER MESSAGE HANDLER
+
   currentWorker.onmessage = function(event){
 
    if(currentWorker !== compilerWorker) return;
@@ -441,25 +438,24 @@ function runCode(){
 
    if(data.type === "output"){
     appendOutput(data.text || "");
-   if(data.type === "output"){
- appendOutput(data.text || "");
- return;
-}
-
-if(data.type === "done"){
- const code = Number.isFinite(Number(data.exitCode))
-  ? Number(data.exitCode)
-  : 0;
-
- finishRun(
-  code === 0
-   ? "Program finished successfully. Exit code: 0"
-   : "Program finished with exit code: " + code
- );
-
- return;
- }
+    return;
    }
+
+   if(data.type === "done"){
+
+    const code = Number.isFinite(Number(data.exitCode))
+     ? Number(data.exitCode)
+     : 0;
+
+    finishRun(
+     code === 0
+      ? "Program finished successfully. Exit code: 0"
+      : "Program finished with exit code: " + code
+    );
+
+    return;
+   }
+
   };
 
   currentWorker.onerror = function(event){
@@ -479,7 +475,6 @@ if(data.type === "done"){
    standard:"c17"
   });
 
-  // Stop a program if it runs for too long.
   runTimer = setTimeout(function(){
 
    if(currentWorker !== compilerWorker) return;
@@ -488,7 +483,7 @@ if(data.type === "done"){
 
    finishRun("Program stopped: time limit reached.");
 
-  }, MAX_RUN_TIME);
+  },MAX_RUN_TIME);
 
  }catch(error){
 
@@ -509,7 +504,6 @@ terminalForm.addEventListener("submit",function(event){
 
  const text = terminalLine.value;
 
- // Display the user's submitted input in the same terminal.
  appendOutput(text + "\n");
 
  compilerWorker.postMessage({
@@ -520,7 +514,6 @@ terminalForm.addEventListener("submit",function(event){
  terminalLine.value = "";
  terminalLine.focus();
 
- // Reset the execution timer after input.
  clearTimeout(runTimer);
 
  const currentWorker = compilerWorker;
@@ -546,7 +539,6 @@ function stopCode(){
  if(!isRunning) return;
 
  appendOutput("\nProgram stopped by user.");
-
  finishRun("Program stopped.");
 }
 
@@ -557,10 +549,8 @@ function stopCode(){
 function clearCode(){
 
  if(confirm("Clear your code?")){
-
   editor.value = "";
   output.textContent = "Editor cleared.";
-
  }
 }
 
@@ -577,9 +567,7 @@ function copyCode(){
    .catch(()=>alert("Please select and copy the code manually."));
 
  }else{
-
   alert("Please select and copy the code manually.");
-
  }
 }
 
@@ -609,9 +597,7 @@ function downloadCode(){
 // =====================================
 
 function showAuthMessage(message){
-
  document.getElementById("authMessage").textContent = message;
-
 }
 
 // =====================================
@@ -645,20 +631,14 @@ async function registerUser(){
   if(error) throw error;
 
   if(data.session){
-
    showAuthMessage("Account created successfully! You are now signed in.");
    await loadPrograms();
-
   }else{
-
    showAuthMessage("Account created! Please try signing in.");
-
   }
 
  }catch(error){
-
   showAuthMessage(error.message);
-
  }
 }
 
@@ -691,9 +671,7 @@ async function loginUser(){
   await loadPrograms();
 
  }catch(error){
-
   showAuthMessage(error.message);
-
  }
 }
 
@@ -706,16 +684,13 @@ async function logoutUser(){
  const {error} = await supabaseClient.auth.signOut();
 
  if(error){
-
   showAuthMessage(error.message);
-
  }else{
 
   showAuthMessage("You have signed out.");
 
   document.getElementById("programList").textContent =
    "Sign in to view your saved programs.";
-
  }
 }
 
@@ -762,13 +737,10 @@ async function saveProgram(){
   if(error) throw error;
 
   showAuthMessage("Program saved successfully!");
-
   await loadPrograms();
 
  }catch(error){
-
   showAuthMessage("Save failed: " + error.message);
-
  }
 }
 
@@ -786,17 +758,13 @@ async function loadPrograms(){
  const list = document.getElementById("programList");
 
  if(error){
-
   list.textContent = "Unable to load programs: " + error.message;
   return;
-
  }
 
  if(!data || data.length === 0){
-
   list.textContent = "No saved programs yet.";
   return;
-
  }
 
  list.innerHTML = "";
@@ -847,16 +815,12 @@ async function openProgram(id){
   .single();
 
  if(error){
-
   showAuthMessage("Unable to open program: " + error.message);
   return;
-
  }
 
  editor.value = data.code;
-
  showAuthMessage("Program opened: " + data.title);
-
 }
 
 // =====================================
@@ -879,13 +843,10 @@ async function deleteProgram(id){
   if(error) throw error;
 
   showAuthMessage("Program deleted successfully!");
-
   await loadPrograms();
 
  }catch(error){
-
   showAuthMessage("Delete failed: " + error.message);
-
  }
 }
 
@@ -911,9 +872,7 @@ function updateUserInterface(user){
   userArea.style.display = "none";
 
   document.getElementById("userEmail").textContent = "";
-
  }
-
 }
 
 // =====================================
@@ -921,9 +880,7 @@ function updateUserInterface(user){
 // =====================================
 
 supabaseClient.auth.onAuthStateChange((event,session)=>{
-
  updateUserInterface(session?.user || null);
-
 });
 
 async function checkSession(){
@@ -931,10 +888,8 @@ async function checkSession(){
  const {data,error} = await supabaseClient.auth.getSession();
 
  if(error){
-
   showAuthMessage(error.message);
   return;
-
  }
 
  const user = data.session?.user || null;
@@ -942,16 +897,11 @@ async function checkSession(){
  updateUserInterface(user);
 
  if(user){
-
   await loadPrograms();
-
  }else{
-
   document.getElementById("programList").textContent =
    "Sign in to view your saved programs.";
-
  }
-
 }
 
 checkSession();
@@ -976,12 +926,11 @@ editor.addEventListener("keydown",function(event){
 
   this.selectionStart =
    this.selectionEnd = start + 4;
-
  }
-
 });
 
 </script>
 
 </body>
-</html>
+  </html>
+  
