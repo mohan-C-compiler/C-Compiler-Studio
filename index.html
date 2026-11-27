@@ -441,20 +441,24 @@ function runCode(){
 
    if(data.type === "output"){
     appendOutput(data.text || "");
-    return;
-   }
+   if(data.type === "output"){
+ appendOutput(data.text || "");
+ return;
+}
 
-   const code = Number.isFinite(Number(data.exitCode))
-    ? Number(data.exitCode)
-    : 0;
+if(data.type === "done"){
+ const code = Number.isFinite(Number(data.exitCode))
+  ? Number(data.exitCode)
+  : 0;
 
-    finishRun(
-     code === 0
-      ? "Program finished successfully. Exit code: 0"
-      : "Program finished with exit code: " + code
-    );
+ finishRun(
+  code === 0
+   ? "Program finished successfully. Exit code: 0"
+   : "Program finished with exit code: " + code
+ );
 
-    return;
+ return;
+ }
    }
   };
 
