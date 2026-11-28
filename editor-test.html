@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C Compiler Studio - Editor Test</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    background: #0b1020;
+    color: #f1f5f9;
+    font-family: Arial, sans-serif;
+}
+
+h2 {
+    color: #60a5fa;
+}
+
+#editor {
+    border: 1px solid #334155;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 15px;
+}
+
+.cm-editor {
+    height: 400px;
+    font-size: 15px;
+}
+
+button {
+    margin-top: 15px;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    font-weight: bold;
+}
+
+#result {
+    margin-top: 15px;
+    white-space: pre-wrap;
+    color: #86efac;
+    font-family: monospace;
+}
+</style>
+</head>
+
+<body>
+
+<h2>⚡ C Compiler Studio</h2>
+<p>CodeMirror 6 Editor Test</p>
+
+<div id="editor"></div>
+
+<button id="checkButton">Check Editor Code</button>
+
+<div id="result">Editor is ready.</div>
+
+<script type="module">
+
+import {
+    EditorView,
+    basicSetup
+} from "https://esm.sh/codemirror@6.0.2";
+
+import {
+    cpp
+} from "https://esm.sh/@codemirror/lang-cpp";
+
+const initialCode = `#include <stdio.h>
+
+int main() {
+    int a, b;
+
+    printf("Enter two numbers: ");
+    scanf("%d %d", &a, &b);
+
+    printf("Sum = %d\\\\n", a + b);
+
+    return 0;
+}`;
+
+const view = new EditorView({
+    doc: initialCode,
+
+    extensions: [
+        basicSetup,
+        cpp(),
+
+        EditorView.theme({
+            "&": {
+                height: "400px",
+                backgroundColor: "#101827",
+                color: "#d1fae5"
+            },
+
+            ".cm-gutters": {
+                backgroundColor: "#172033",
+                color: "#64748b",
+                border: "none"
+            },
+
+            ".cm-activeLine": {
+                backgroundColor: "#1e293b"
+            },
+
+            ".cm-activeLineGutter": {
+                backgroundColor: "#1e293b"
+            }
+        })
+    ],
+
+    parent: document.getElementById("editor")
+});
+
+document.getElementById("checkButton").addEventListener("click", () => {
+    document.getElementById("result").textContent =
+        "Editor is working!\n\n" + view.state.doc.toString();
+});
+
+</script>
+
+</body>
+  </html>
+  
