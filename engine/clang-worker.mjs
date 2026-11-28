@@ -227,6 +227,12 @@ function flagsFor(language, standard) {
 
   return [`-std=${standard}`, ...flags.slice(1)];
 }
+
+/*
+ * Make stdout unbuffered before main() starts.
+ * This helps interactive prompts appear before scanf waits for input.
+ */
+
 function enableInteractiveOutput(code) {
   const prelude = `
 #include <stdio.h>
@@ -238,11 +244,11 @@ static void enable_terminal_output(void) {
 }
 #endif
 
-#line 1 "main.c"
 `;
 
   return prelude + code;
-    }
+}
+
 async function compile(language, code, flags) {
   if (language === 'cpp') {
     loadPch();
@@ -251,8 +257,9 @@ async function compile(language, code, flags) {
   const { driver, file, libs } = LANGUAGES[language];
 
   const files = {
-  [file]: enableInteractiveOutput(code)
-};
+    [file]: enableInteractiveOutput(code)
+  };
+
   if (language === 'cpp') {
     Object.assign(files, await cppRuntime());
   }
