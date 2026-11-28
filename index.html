@@ -406,9 +406,9 @@ function runCode(){
  try{
 
   compilerWorker=new Worker(
-   new URL("engine/clang-worker.mjs?v=2",document.baseURI)
+   new URL("engine/clang-worker.mjs?v=2",document.baseURI),
    {type:"module"}
-  );
+);
 
   const currentWorker=compilerWorker;
 
