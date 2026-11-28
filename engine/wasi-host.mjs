@@ -120,14 +120,12 @@ export function createWasi({
 
     view.setUint8(ptr, fd <= 2 ? 2 : 0);
     view.setUint16(ptr + 2, 0, true);
-    view.setUint16(ptr + 4, 0, true);
-    view.setUint16(ptr + 6, 0, true);
-    view.setUint16(ptr + 8, 0, true);
-    view.setUint16(ptr + 10, 0, true);
-    view.setUint16(ptr + 12, 0, true);
+
+    view.setBigUint64(ptr + 8, 0n, true);
+    view.setBigUint64(ptr + 16, 0n, true);
 
     return 0;
-  }
+}
 
   function clockTimeGet(id, precision, timePtr) {
     const view = getMemory();
