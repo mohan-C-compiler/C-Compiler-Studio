@@ -227,7 +227,22 @@ function flagsFor(language, standard) {
 
   return [`-std=${standard}`, ...flags.slice(1)];
 }
+function enableInteractiveOutput(code) {
+  const prelude = `
+#include <stdio.h>
 
+#if defined(__wasm__)
+__attribute__((constructor))
+static void enable_terminal_output(void) {
+    setvbuf(stdout, NULL, _IONBF, 0);
+}
+#endif
+
+#line 1 "main.c"
+`;
+
+  return prelude + code;
+    }
 async function compile(language, code, flags) {
   if (language === 'cpp') {
     loadPch();
@@ -236,9 +251,8 @@ async function compile(language, code, flags) {
   const { driver, file, libs } = LANGUAGES[language];
 
   const files = {
-    [file]: code
-  };
-
+  [file]: enableInteractiveOutput(code)
+};
   if (language === 'cpp') {
     Object.assign(files, await cppRuntime());
   }
