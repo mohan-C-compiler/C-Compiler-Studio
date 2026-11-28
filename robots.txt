@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://c-compiler-studio.pages.dev/sitemap.xml
